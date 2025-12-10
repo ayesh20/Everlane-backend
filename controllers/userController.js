@@ -1,231 +1,132 @@
 import User from "../models/user.js";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import dotenv from "dotenv"
-dotenv.config()
 
-export async function createUser(req, res) {
+
+export const registerUser = async (req, res) => {
     try {
-        console.log('Creating user with data:', {
-            firstName: req.body.firstName,
-            lastName: req.body.lastName,
-            email: req.body.email,
-            role: req.body.role
-        });
+        const { fullName, email, password } = req.body;
 
-        // Validate required fields
-        if (!req.body.firstName || !req.body.email || !req.body.password) {
+        if (!fullName || !email || !password) {
             return res.status(400).json({
-                message: "Missing required fields: firstName, email, and password are required"
-            });
-        }
-
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(req.body.email)) {
-            return res.status(400).json({
-                message: "Please provide a valid email address"
+                success: false,
+                message: "Please provide all required fields"
             });
         }
 
         // Check if user already exists
-        const existingUser = await User.findOne({ email: req.body.email.toLowerCase() });
+        const existingUser = await User.findOne({ email });
         if (existingUser) {
             return res.status(400).json({
+                success: false,
                 message: "User with this email already exists"
             });
         }
 
-        // Validate password length
-        if (req.body.password.length < 6) {
-            return res.status(400).json({
-                message: "Password must be at least 6 characters long"
-            });
-        }
+        // Hash the password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Hash password
-        const passwordHash = bcrypt.hashSync(req.body.password, 10);
+        // Create new user
+        const user = await User.create({
+            fullName,
+            email,
+            password: hashedPassword
+        });
 
-        // Prepare user data
-        const userData = {
-            firstName: req.body.firstName.trim(),
-            lastName: req.body.lastName ? req.body.lastName.trim() : '',
-            email: req.body.email.toLowerCase().trim(),
-            password: passwordHash,
-            role: req.body.role || 'user'
-        };
+        //  JWT token
+        const token = generateToken(user._id);
 
-        // Create user
-        const user = new User(userData);
-        const savedUser = await user.save();
-
-        console.log('User created successfully:', savedUser._id);
-
+        // Send response
         res.status(201).json({
-            message: "User created successfully",
-            user: {
-                id: savedUser._id,
-                firstName: savedUser.firstName,
-                lastName: savedUser.lastName,
-                email: savedUser.email,
-                role: savedUser.role
+            success: true,
+            message: "User registered successfully",
+            data: {
+                _id: user._id,
+                fullName: user.fullName,
+                email: user.email,
+                token
             }
         });
 
     } catch (error) {
-        console.error('Error creating user:', error);
-        
-        // Handle specific MongoDB errors
-        if (error.code === 11000) {
+        // Handle mongoose validation errors
+        if (error.name === "ValidationError") {
+            const messages = Object.values(error.errors).map(err => err.message);
             return res.status(400).json({
-                message: "User with this email already exists"
+                success: false,
+                message: messages.join(", ")
             });
         }
-        
-        if (error.name === 'ValidationError') {
-            const validationErrors = Object.values(error.errors).map(err => err.message);
-            return res.status(400).json({
-                message: "Validation error",
-                errors: validationErrors
-            });
-        }
-        
+
         res.status(500).json({
-            message: "Failed to create user",
-            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+            success: false,
+            message: "Server error",
+            error: error.message
         });
     }
-}
+};
 
-export async function loginuser(req, res) {
+
+export const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // Validate required fields
+        // Check if email and password are provided
         if (!email || !password) {
             return res.status(400).json({
-                message: "Email and password are required"
+                success: false,
+                message: "Please provide email and password"
             });
         }
 
-        console.log('Login attempt for email:', email);
-
-        // Find user
-        const user = await User.findOne({ email: email.toLowerCase().trim() });
-        
+        // Find user by email
+        const user = await User.findOne({ email });
         if (!user) {
-            return res.status(404).json({
-                message: "User not found"
+            return res.status(401).json({
+                success: false,
+                message: "Invalid email or password"
             });
         }
 
-        // Check password
-        const isPasswordCorrect = bcrypt.compareSync(password, user.password);
-        
-        if (!isPasswordCorrect) {
-            return res.status(403).json({
-                message: "Incorrect password"
+        // Compare passwords
+        const isPasswordMatch = await bcrypt.compare(password, user.password);
+        if (!isPasswordMatch) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid email or password"
             });
         }
 
         // Generate JWT token
-        const token = jwt.sign(
-            {
-                id: user._id,
-                email: user.email,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                role: user.role,
-                isBlocked: user.isBlocked || false,
-                isEmailVerified: user.isEmailVerified || false,
-                image: user.image || null
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: '24h' } // Add expiration time
-        );
+        const token = generateToken(user._id);
 
-        console.log('Login successful for user:', user.email);
-
-        res.json({
-            token: token,
+        // Send response
+        res.status(200).json({
+            success: true,
             message: "Login successful",
-            user: {
-                id: user._id,
-                firstName: user.firstName,
-                lastName: user.lastName,
+            data: {
+                _id: user._id,
+                fullName: user.fullName,
                 email: user.email,
-                role: user.role
+                token
             }
         });
 
     } catch (error) {
-        console.error('Error during login:', error);
         res.status(500).json({
-            message: "Login failed",
-            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+            success: false,
+            message: "Server error",
+            error: error.message
         });
     }
-}
+};
 
-export async function getAllUsers(req, res) {
-    try {
-        const users = await User.find({}, '-password'); // Exclude password from response
-        res.json(users);
-    } catch (error) {
-        console.error('Error fetching users:', error);
-        res.status(500).json({ 
-            message: "Failed to fetch users",
-            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-        });
-    }
-}
 
-// Additional helper functions you might need
-
-export async function deleteUser(req, res) {
-    try {
-        const userId = req.params.userId;
-        
-        const result = await User.deleteOne({ _id: userId });
-        
-        if (result.deletedCount === 0) {
-            return res.status(404).json({ message: "User not found" });
-        }
-        
-        res.json({ message: "User deleted successfully" });
-    } catch (error) {
-        console.error('Error deleting user:', error);
-        res.status(500).json({ 
-            message: "Failed to delete user",
-            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-        });
-    }
-}
-
-export async function updateUserRole(req, res) {
-    try {
-        const userId = req.params.userId;
-        const { role } = req.body;
-        
-        if (!role || !['user', 'admin'].includes(role)) {
-            return res.status(400).json({ message: "Invalid role. Role must be 'user' or 'admin'" });
-        }
-        
-        const result = await User.updateOne(
-            { _id: userId },
-            { role: role }
-        );
-        
-        if (result.matchedCount === 0) {
-            return res.status(404).json({ message: "User not found" });
-        }
-        
-        res.json({ message: "User role updated successfully" });
-    } catch (error) {
-        console.error('Error updating user role:', error);
-        res.status(500).json({ 
-            message: "Failed to update user role",
-            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-        });
-    }
-}
+const generateToken = (userId) => {
+    return jwt.sign(
+        { id: userId },
+        process.env.JWT_SECRET,
+        { expiresIn: "30d" }
+    );
+};
