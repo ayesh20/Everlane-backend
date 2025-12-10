@@ -1,8 +1,8 @@
 import express from "express"
 import mongoose from "mongoose"
 import bodyParser from "body-parser"
-//import userRouter from "./Routers/userrouter.js"
-//import productRouter from"./routers/productRouter.js"
+import userRouter from "./Routers/userrouter.js"
+import productRouter from"./routers/productRouter.js"
 import jwt, { decode } from "jsonwebtoken";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -59,8 +59,8 @@ mongoose.connect(connectionString).then(
 
 
 
-//app.use("/api/users", userRouter)
-//app.use("/api/products",productRouter)
+app.use("/api/users", userRouter)
+app.use("/api/products",productRouter)
 app.use("/api/contactus", contactRouter)
 
 
