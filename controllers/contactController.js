@@ -1,5 +1,5 @@
 // controllers/contactController.js
-import Contact from '../models/contact.js';
+import Contact from '../models/contactus.js';
 
 export const createContact = async (req, res, next) => {
   try {
