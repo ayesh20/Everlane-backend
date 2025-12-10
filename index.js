@@ -6,6 +6,7 @@ import bodyParser from "body-parser"
 import jwt, { decode } from "jsonwebtoken";
 import dotenv from "dotenv";
 import cors from "cors";
+import contactRouter from "./routers/contactRouter.js";
 dotenv.config()
 
 
