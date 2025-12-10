@@ -43,6 +43,11 @@ const productSchema = new mongoose.Schema({
         type : String,
         required : true,
         default : "cosmatics"
+    },
+    reviews:
+    {
+        type : String,
+        default : "no reviews"
     }
 })
 
