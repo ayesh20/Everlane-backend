@@ -8,6 +8,6 @@ productRouter.get("/",getProducts)
 productRouter.get("/:productId", getProductInfo) 
 productRouter.delete("/:productId", deleteProduct)
 productRouter.put("/:productId", updateProduct)
-router.get("/:id", getProductById);
+productRouter.get("/:id", getProductById)
 
 export default productRouter;
