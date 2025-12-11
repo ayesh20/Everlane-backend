@@ -5,10 +5,11 @@ import productRouter from"./routers/productRouter.js"
 import jwt, { decode } from "jsonwebtoken";
 import dotenv from "dotenv";
 import cors from "cors";
-
-import userRouter from "./routers/userRouter.js";
-
 import contactRouter from "./routers/contactRouter.js";
+import userRouter from "./routers/userRouter.js";
+import cRouter from "./routers/cartRouter.js";
+
+
 
 dotenv.config()
 
@@ -75,6 +76,7 @@ mongoose.connect(connectionString).then(
 
 
 app.use("/api/users", userRouter)
+app.use("/api/cart", cRouter)
 app.use("/api/products",productRouter)
 app.use("/api/contactus", contactRouter)
 
