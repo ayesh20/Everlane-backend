@@ -49,7 +49,14 @@ const productSchema = new mongoose.Schema({
             firstName: String,
             comment: String,
             rating: Number,
-            date: { type: Date, default: Date.now }
+            date: { type: Date, default: Date.now },
+            replies: [
+            {
+                repliedBy: String,
+                replyText: String,
+                date: { type: Date, default: Date.now }
+            }
+            ]
         }
     ]
 })
