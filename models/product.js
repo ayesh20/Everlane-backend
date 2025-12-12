@@ -44,11 +44,14 @@ const productSchema = new mongoose.Schema({
         required : true,
         default : "cosmatics"
     },
-    reviews:
-    {
-        type : String,
-        default : "no reviews"
-    }
+    reviews: [
+        {
+            firstName: String,
+            comment: String,
+            rating: Number,
+            date: { type: Date, default: Date.now }
+        }
+    ]
 })
 
 const Product = mongoose.model("products",productSchema)
